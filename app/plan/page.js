@@ -7,7 +7,7 @@ import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, ArrowLeft, MapPin, Wallet, Heart, Compass, Calendar, Sparkles, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase';
 

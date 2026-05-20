@@ -5,27 +5,95 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, MapPin, CloudSun, Wallet, Hotel, Sparkles, Calendar, Coffee, UtensilsCrossed, Camera, Bed, Bus, MoonStar, Star } from 'lucide-react';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase';
 
-const IMGS = [
+const FALLBACK_IMGS = [
   'https://images.unsplash.com/photo-1542027162039-67cb61de57df?crop=entropy&cs=srgb&fm=jpg&q=85&w=1600',
   'https://images.unsplash.com/photo-1758739824218-049eeab22d11?crop=entropy&cs=srgb&fm=jpg&q=85&w=1600',
   'https://images.unsplash.com/photo-1544621021-6dc694c44278?crop=entropy&cs=srgb&fm=jpg&q=85&w=1600',
   'https://images.unsplash.com/photo-1697030131971-5d8889e5304d?crop=entropy&cs=srgb&fm=jpg&q=85&w=1600',
 ];
+const CITY_HEROES = {
+  Delhi:
+    'https://images.unsplash.com/photo-1587474260584-136574528ed5?q=80&w=1600&auto=format&fit=crop',
+    
+  Hyderabad:
+    'https://images.unsplash.com/photo-1599661046289-e31897846e41?q=80&w=1600&auto=format&fit=crop',
+
+  Mumbai:
+    'https://images.unsplash.com/photo-1567157577867-05ccb1388e66?q=80&w=1600&auto=format&fit=crop',
+
+  Bangalore:
+    'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?q=80&w=1600&auto=format&fit=crop',
+
+  Bengaluru:
+    'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?q=80&w=1600&auto=format&fit=crop',
+};
 
 const typeIcon = (t) => ({ eat: UtensilsCrossed, see: Camera, stay: Bed, move: Bus, rest: MoonStar }[t] || Sparkles);
 
 function ItineraryInner() {
   const params = useSearchParams();
+  const router = useRouter();
   const id = params.get('id');
   const [trip, setTrip] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeDay, setActiveDay] = useState(1);
+  const [heroImg, setHeroImg] = useState(FALLBACK_IMGS[0]);
+  const [dayPhotos, setDayPhotos] = useState({});
 
   useEffect(() => {
-    if (!id) { setLoading(false); return; }
-    fetch(`/api/trips/${id}`).then(r => r.json()).then(d => { setTrip(d); setLoading(false); setActiveDay(d.days?.[0]?.day || 1); }).catch(() => setLoading(false));
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) router.push('/signin');
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!id) {
+      setLoading(false);
+      return;
+    }
+
+  fetch(`/api/trips/${id}`)
+    .then((r) => r.json())
+    .then((d) => {
+      setTrip(d);
+      setLoading(false);
+      setActiveDay(d.days?.[0]?.day || 1);
+
+      
+
+    if (d.destination && CITY_HEROES[d.destination]) {
+        setHeroImg(CITY_HEROES[d.destination]);
+        }
+    })
+    .catch(() => {
+        setLoading(false);
+      });
   }, [id]);
+
+  // Fetch photos for each day's items
+  useEffect(() => {
+    if (!trip?.days) return;
+    trip.days.forEach(day => {
+      day.items?.forEach(async (item) => {
+        if (item.location && !dayPhotos[item.location]) {
+          try {
+            const res = await fetch(
+              `https://api.unsplash.com/search/photos?query=${encodeURIComponent(item.location)}&per_page=1&orientation=landscape`,
+              { headers: { Authorization: `Client-ID ${process.env.NEXT_PUBLIC_UNSPLASH_KEY}` } }
+            );
+            const data = await res.json();
+            if (data.results?.[0]?.urls?.small) {
+              setDayPhotos(prev => ({ ...prev, [item.location]: data.results[0].urls.small }));
+            }
+          } catch {}
+        }
+      });
+    });
+  }, [trip]);
 
   if (loading) {
     return (
@@ -55,7 +123,6 @@ function ItineraryInner() {
     );
   }
 
-  const hero = IMGS[(trip.days?.[0]?.day || 1) % IMGS.length];
   const day = trip.days?.find(d => d.day === activeDay) || trip.days?.[0];
 
   return (
@@ -64,7 +131,7 @@ function ItineraryInner() {
       <main className="flex-1 min-w-0">
         {/* HERO */}
         <section className="relative h-[420px] overflow-hidden">
-          <img src={hero} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <img src={heroImg} alt={trip.destination} className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700" />
           <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/30 to-transparent" />
           <div className="absolute inset-0 flex flex-col justify-end p-8 lg:p-12 text-bone">
             <div className="text-[12px] uppercase tracking-[0.2em] text-bone/70 mb-2">{trip.vibe}</div>
@@ -115,23 +182,38 @@ function ItineraryInner() {
                   <div className="absolute left-2 top-2 bottom-2 w-px bg-border" />
                   {day.items?.map((it, i) => {
                     const Icon = typeIcon(it.type);
+                    const photo = dayPhotos[it.location];
                     return (
                       <div key={i} className="relative pb-4">
                         <div className="absolute -left-[18px] top-4 h-3 w-3 rounded-full bg-ink ring-4 ring-bone" />
-                        <div className="rounded-2xl bg-white border border-border/60 p-5 hover:shadow-soft transition">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 text-[12px] text-muted-foreground"><Icon className="h-3.5 w-3.5" /> {it.time}</div>
-                              <div className="font-display text-[20px] text-ink leading-tight mt-1">{it.title}</div>
-                              <div className="text-[13px] text-muted-foreground mt-1.5">{it.details}</div>
-                              {it.location && <div className="text-[12px] text-muted-foreground mt-2 flex items-center gap-1"><MapPin className="h-3 w-3" /> {it.location}</div>}
-                            </div>
-                            {typeof it.cost === 'number' && it.cost > 0 && (
-                              <div className="text-right shrink-0">
-                                <div className="text-[11px] uppercase text-muted-foreground tracking-wider">est.</div>
-                                <div className="font-display text-[18px] text-ink">${it.cost}</div>
+                        <div className="rounded-2xl bg-white border border-border/60 overflow-hidden hover:shadow-soft transition">
+                          {photo && (
+                            <img src={photo} alt={it.title} className="w-full h-36 object-cover" />
+                          )}
+                          <div className="p-5">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 text-[12px] text-muted-foreground"><Icon className="h-3.5 w-3.5" /> {it.time}</div>
+                                <div className="font-display text-[20px] text-ink leading-tight mt-1">{it.title}</div>
+                                <div className="text-[13px] text-muted-foreground mt-1.5">{it.details}</div>
+                                {it.location && (
+                                    <a
+                                        href={`https://www.google.com/maps/search/${encodeURIComponent(it.location)}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[12px] text-ocean mt-2 flex items-center gap-1 hover:underline"
+                                    >
+                                        <MapPin className="h-3 w-3" /> {it.location} ↗
+                                    </a>
+                                    )}
                               </div>
-                            )}
+                              {typeof it.cost === 'number' && it.cost > 0 && (
+                                <div className="text-right shrink-0">
+                                  <div className="text-[11px] uppercase text-muted-foreground tracking-wider">est.</div>
+                                  <div className="font-display text-[18px] text-ink">${it.cost}</div>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -140,7 +222,7 @@ function ItineraryInner() {
                 </div>
               </div>
 
-              {/* SIDE: map + stays */}
+              {/* SIDE: stays */}
               <div className="space-y-5">
                 <div className="rounded-3xl border border-border/60 overflow-hidden bg-mist h-72 relative">
                   <div className="absolute inset-0 gradient-mesh" />
@@ -151,7 +233,6 @@ function ItineraryInner() {
                       <div className="text-[11px] text-muted-foreground/70 mt-1">Routes for Day {day.day}</div>
                     </div>
                   </div>
-                  {/* mock pins */}
                   {day.items?.slice(0,4).map((_, i) => (
                     <div key={i} className="absolute h-7 w-7 rounded-full bg-ink text-bone flex items-center justify-center text-[11px] font-medium shadow-lift" style={{ left: `${20 + i*18}%`, top: `${30 + (i%2)*25}%` }}>{i+1}</div>
                   ))}
@@ -160,16 +241,33 @@ function ItineraryInner() {
                   <div className="flex items-center gap-2 text-[12px] uppercase tracking-wider text-muted-foreground mb-3"><Hotel className="h-3.5 w-3.5" /> Recommended stays</div>
                   <div className="space-y-3">
                     {(trip.stays || []).slice(0,3).map((s, i) => (
-                      <div key={i} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-bone/60 hover:bg-mist/60 transition">
+                    <a
+                        key={i}
+                        href={`https://www.booking.com/search.html?ss=${encodeURIComponent(
+                        s.name + ' ' + (s.area || '')
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-bone/60 hover:bg-mist/60 transition"
+                    >
                         <div className="min-w-0">
-                          <div className="font-medium text-[14px] text-ink truncate">{s.name}</div>
-                          <div className="text-[12px] text-muted-foreground truncate">{s.area} • {s.vibe}</div>
+                        <div className="font-medium text-[14px] text-ink truncate">
+                            {s.name}
                         </div>
+                        <div className="text-[12px] text-muted-foreground truncate">
+                            {s.area} • {s.vibe}
+                        </div>
+                        </div>
+
                         <div className="text-right shrink-0">
-                          <div className="flex items-center gap-1 text-[12px] text-ink"><Star className="h-3 w-3 fill-ink" /> {s.rating || 4.8}</div>
-                          <div className="text-[12px] text-muted-foreground">${s.pricePerNight}/n</div>
+                        <div className="flex items-center gap-1 text-[12px] text-ink">
+                            <Star className="h-3 w-3 fill-ink" /> {s.rating || 4.8}
                         </div>
-                      </div>
+                        <div className="text-[12px] text-muted-foreground">
+                            ${s.pricePerNight}/n
+                        </div>
+                        </div>
+                    </a>
                     ))}
                   </div>
                 </div>
@@ -181,7 +279,7 @@ function ItineraryInner() {
         {/* TIPS + Budget */}
         <section className="px-6 lg:px-12 mt-14 mb-20 grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 rounded-3xl bg-white border border-border/60 p-6">
-            <div className="text-[12px] uppercase tracking-wider text-muted-foreground mb-3">Voya’s notes</div>
+            <div className="text-[12px] uppercase tracking-wider text-muted-foreground mb-3">Voya's notes</div>
             <ul className="space-y-3">
               {(trip.tips || []).map((t, i) => (
                 <li key={i} className="flex gap-3 text-[14px] text-ink leading-relaxed">

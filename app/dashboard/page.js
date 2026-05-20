@@ -6,7 +6,6 @@ import { ArrowRight, Sparkles, Plus, MapPin, Calendar, TrendingUp, Plane } from 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
-import { createClient } from '@/lib/supabase';
 
 const IMGS = [
   'https://images.unsplash.com/photo-1542027162039-67cb61de57df?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200',

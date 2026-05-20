@@ -9,7 +9,9 @@ Ask one clarifying question at a time when info is missing. Suggest specific nei
 Keep replies under 180 words unless the user asks for depth. Use markdown sparingly (no headings, occasional **bold**).
 If the user is ready to commit, offer to generate a full itinerary.`;
 
-const SYSTEM_ITINERARY = `You are an expert travel planner. Output ONLY valid JSON matching this exact schema:
+const SYSTEM_ITINERARY = `You are an expert travel planner. The user will provide trip details. You MUST plan the trip for EXACTLY the destination they specify. Do not substitute or change the destination under any circumstances.
+
+Output ONLY valid JSON matching this exact schema:
 {
   "destination": string,
   "summary": string (2-3 evocative sentences),
@@ -26,7 +28,7 @@ const SYSTEM_ITINERARY = `You are an expert travel planner. Output ONLY valid JS
   "stays": [ { "name": string, "area": string, "vibe": string, "pricePerNight": number, "rating": number } ],
   "tips": [ string ]
 }
-Make it specific (real neighborhoods, real-sounding venues), elegant, and feasible. No code fences.`;
+Make it specific (real neighborhoods, real venues), elegant, and feasible. No code fences. No markdown.`;
 
 async function handle(request, { params }) {
   const resolvedParams = await params;
