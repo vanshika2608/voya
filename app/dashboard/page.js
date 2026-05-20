@@ -4,9 +4,10 @@ import Sidebar from '@/components/voya/Sidebar';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Sparkles, Plus, MapPin, Calendar, TrendingUp, Plane } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase';
 import { createClient } from '@/lib/supabase';
 
-const FALLBACK_IMG = 'https://images.unsplash.com/photo-1697030131971-5d8889e5304d?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200';
 const IMGS = [
   'https://images.unsplash.com/photo-1542027162039-67cb61de57df?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200',
   'https://images.unsplash.com/photo-1758739824218-049eeab22d11?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200',
@@ -16,24 +17,30 @@ const IMGS = [
 ];
 
 export default function Dashboard() {
+  const router = useRouter();
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
 
   useEffect(() => {
     const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) router.push('/signin');
+    });
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
-    fetch('/api/trips').then(r => r.json()).then(d => { setTrips(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
+    fetch('/api/trips').then(r => r.json()).then(d => {
+      setTrips(Array.isArray(d) ? d : []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, []);
 
   return (
     <div className="flex min-h-screen bg-bone">
       <Sidebar />
       <main className="flex-1 min-w-0">
-        {/* top bar */}
         <div className="sticky top-0 z-20 bg-bone/80 backdrop-blur-xl border-b border-border/60 px-6 lg:px-10 py-4 flex items-center justify-between">
           <div>
-            <div className="text-[12px] uppercase tracking-[0.2em] text-muted-foreground">Saturday</div>
+            <div className="text-[12px] uppercase tracking-[0.2em] text-muted-foreground">Dashboard</div>
             <h1 className="font-display text-[28px] text-ink leading-tight">Welcome back, {user?.user_metadata?.full_name?.split(' ')[0] || 'traveler'}.</h1>
           </div>
           <div className="flex items-center gap-2">
@@ -43,14 +50,13 @@ export default function Dashboard() {
         </div>
 
         <div className="p-6 lg:p-10 space-y-10">
-          {/* AI panel + stats */}
           <div className="grid lg:grid-cols-3 gap-5">
             <div className="lg:col-span-2 relative rounded-3xl overflow-hidden bg-ink text-bone p-8 md:p-10">
               <div className="absolute inset-0 gradient-mesh opacity-40" />
               <div className="relative max-w-lg">
                 <div className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-bone/60 mb-4"><Sparkles className="h-3 w-3" /> Voya assistant</div>
                 <h2 className="font-display text-[34px] md:text-[44px] leading-[1.05] text-balance">Your week looks light. <em className="italic">Shall we dream up</em> something?</h2>
-                <p className="text-bone/70 text-[14px] mt-3 leading-relaxed">Three quiet days in Lisbon? A long weekend in the Dolomites? Tell me a mood, I’ll do the rest.</p>
+                <p className="text-bone/70 text-[14px] mt-3 leading-relaxed">Three quiet days in Lisbon? A long weekend in the Dolomites? Tell me a mood, I'll do the rest.</p>
                 <div className="mt-6 flex flex-wrap gap-2">
                   {['Cozy autumn escape', 'Beach + culture, 5 days', 'Solo, under $1500'].map(s => (
                     <Link key={s} href={`/chat?q=${encodeURIComponent(s)}`} className="text-[12px] px-3 py-1.5 rounded-full bg-bone/10 hover:bg-bone/20 transition">{s}</Link>
@@ -62,18 +68,17 @@ export default function Dashboard() {
             <div className="grid gap-5">
               <div className="rounded-3xl bg-white border border-border/60 p-6">
                 <div className="flex items-center gap-2 text-[12px] uppercase tracking-wider text-muted-foreground mb-3"><TrendingUp className="h-3.5 w-3.5" /> Trips this year</div>
-                <div className="font-display text-[44px] text-ink leading-none">{Math.max(trips.length, 7)}</div>
-                <div className="text-[13px] text-muted-foreground mt-2">3 more than last year</div>
+                <div className="font-display text-[44px] text-ink leading-none">{Math.max(trips.length, 0)}</div>
+                <div className="text-[13px] text-muted-foreground mt-2">{trips.length} saved itineraries</div>
               </div>
               <div className="rounded-3xl bg-white border border-border/60 p-6">
-                <div className="flex items-center gap-2 text-[12px] uppercase tracking-wider text-muted-foreground mb-3"><Plane className="h-3.5 w-3.5" /> Next departure</div>
-                <div className="font-display text-[24px] text-ink leading-tight">Kyoto, Japan</div>
-                <div className="text-[13px] text-muted-foreground mt-1">In 24 days • 6 nights</div>
+                <div className="flex items-center gap-2 text-[12px] uppercase tracking-wider text-muted-foreground mb-3"><Plane className="h-3.5 w-3.5" /> Latest trip</div>
+                <div className="font-display text-[24px] text-ink leading-tight">{trips[0]?.destination || 'None yet'}</div>
+                <div className="text-[13px] text-muted-foreground mt-1">{trips[0] ? `${trips[0].days?.length || 0} days` : 'Plan your first trip'}</div>
               </div>
             </div>
           </div>
 
-          {/* Saved trips */}
           <section>
             <div className="flex items-end justify-between mb-6">
               <div>

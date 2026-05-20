@@ -9,6 +9,7 @@ import { ArrowRight, ArrowLeft, MapPin, Wallet, Heart, Compass, Calendar, Sparkl
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { createClient } from '@/lib/supabase';
 
 const INTERESTS = ['Food', 'Art & Museums', 'Nature', 'Beaches', 'Nightlife', 'History', 'Hiking', 'Shopping', 'Wellness', 'Architecture', 'Wine', 'Coffee'];
 const STYLES = [
@@ -20,6 +21,12 @@ const STYLES = [
 
 export default function PlanPage() {
   const router = useRouter();
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) router.push('/signin');
+    });
+    }, []);
   const [step, setStep] = useState(0);
   const [data, setData] = useState({
     destination: '',

@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { createClient } from '@/lib/supabase';
 
 
 const SUGGESTIONS = [
@@ -25,6 +26,12 @@ function ChatInner() {
   const [sending, setSending] = useState(false);
   const scrollRef = useRef(null);
 
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) router.push('/signin');
+    });
+    }, []);
   useEffect(() => {
     if (initialQ && messages.length === 0) {
       send(initialQ);
