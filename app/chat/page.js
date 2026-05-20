@@ -6,6 +6,8 @@ import { ArrowUp, Sparkles, Plus, Compass } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense } from 'react';
+import ReactMarkdown from 'react-markdown';
+
 
 const SUGGESTIONS = [
   '7 days in Japan, slow pace, food-focused',
@@ -147,8 +149,8 @@ function Message({ m }) {
       <div className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-clay via-sage to-ocean mt-1" />
       <div className="max-w-[85%]">
         <div className="text-[12px] text-muted-foreground mb-1">Voya</div>
-        <div className={`text-[15px] leading-relaxed text-ink whitespace-pre-wrap ${m.streaming ? 'streaming-cursor' : ''}`}>
-          {m.content || (m.streaming && <span className="text-muted-foreground">Thinking…</span>)}
+        <div className="prose prose-sm max-w-none prose-strong:font-semibold prose-p:my-1">
+            <ReactMarkdown>{m.content}</ReactMarkdown>
         </div>
       </div>
     </div>
