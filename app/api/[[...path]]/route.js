@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { v4 as uuid } from 'uuid';
 import { streamChat, chatJSON } from '@/lib/llm';
-import { getDb } from '@/lib/mongo';
+import { createServerSupabaseClient } from '@/lib/supabase-server';
 
 const SYSTEM_ASSISTANT = `You are Voya — a warm, brilliant, deeply experienced AI travel concierge.
 You write like a thoughtful editor at a luxury travel magazine: concise, evocative, never generic.
@@ -29,7 +29,8 @@ const SYSTEM_ITINERARY = `You are an expert travel planner. Output ONLY valid JS
 Make it specific (real neighborhoods, real-sounding venues), elegant, and feasible. No code fences.`;
 
 async function handle(request, { params }) {
-  const path = (params?.path || []).join('/');
+  const resolvedParams = await params;
+  const path = (resolvedParams?.path || []).join('/');
   const method = request.method;
 
   try {
@@ -65,19 +66,46 @@ Return the JSON itinerary.`;
         model: 'gpt-4o-mini',
       });
       const id = uuid();
-      const doc = { _id: id, id, ...data, createdAt: new Date().toISOString(), input: body };
+
+      const supabase = await createServerSupabaseClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const doc = {
+        id,
+        user_id: user?.id || null,
+        destination: data.destination,
+        summary: data.summary,
+        vibe: data.vibe,
+        best_time_note: data.bestTimeNote,
+        weather: data.weather,
+        budget: data.budget,
+        days: data.days,
+        stays: data.stays,
+        tips: data.tips,
+        input: body,
+        created_at: new Date().toISOString(),
+      };
+
       try {
-        const db = await getDb();
-        await db.collection('trips').insertOne(doc);
-      } catch (e) { console.warn('mongo save failed', e?.message); }
-      return NextResponse.json(doc);
+        const { error } = await supabase.from('trips').insert(doc);
+        if (error) console.warn('supabase save failed', error.message);
+      } catch (e) { console.warn('save failed', e?.message); }
+
+      return NextResponse.json({ ...data, id });
     }
 
     if (path === 'trips' && method === 'GET') {
       try {
-        const db = await getDb();
-        const trips = await db.collection('trips').find({}).sort({ createdAt: -1 }).limit(20).toArray();
-        return NextResponse.json(trips.map(({ _id, ...t }) => t));
+        const supabase = await createServerSupabaseClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return NextResponse.json([]);
+        const { data: trips } = await supabase
+          .from('trips')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(20);
+        return NextResponse.json(trips || []);
       } catch {
         return NextResponse.json([]);
       }
@@ -86,11 +114,14 @@ Return the JSON itinerary.`;
     if (path.startsWith('trips/') && method === 'GET') {
       const id = path.split('/')[1];
       try {
-        const db = await getDb();
-        const trip = await db.collection('trips').findOne({ id });
-        if (!trip) return NextResponse.json({ error: 'not found' }, { status: 404 });
-        const { _id, ...rest } = trip;
-        return NextResponse.json(rest);
+        const supabase = await createServerSupabaseClient();
+        const { data: trip, error } = await supabase
+          .from('trips')
+          .select('*')
+          .eq('id', id)
+          .single();
+        if (!trip || error) return NextResponse.json({ error: 'not found' }, { status: 404 });
+        return NextResponse.json(trip);
       } catch (e) {
         return NextResponse.json({ error: e.message }, { status: 500 });
       }

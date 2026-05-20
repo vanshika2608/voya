@@ -181,4 +181,8 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## 📄 License
 
+<<<<<<< HEAD
 MIT © 2025 Voya
+=======
+MIT © 2025 Voya
+>>>>>>> f52b0c1c61fff3051a845ddf9b716e73fe8bed2c

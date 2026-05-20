@@ -4,6 +4,7 @@ import Sidebar from '@/components/voya/Sidebar';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Sparkles, Plus, MapPin, Calendar, TrendingUp, Plane } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { createClient } from '@/lib/supabase';
 
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1697030131971-5d8889e5304d?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200';
 const IMGS = [
@@ -17,7 +18,11 @@ const IMGS = [
 export default function Dashboard() {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+
   useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
     fetch('/api/trips').then(r => r.json()).then(d => { setTrips(Array.isArray(d) ? d : []); setLoading(false); }).catch(() => setLoading(false));
   }, []);
 
@@ -29,7 +34,7 @@ export default function Dashboard() {
         <div className="sticky top-0 z-20 bg-bone/80 backdrop-blur-xl border-b border-border/60 px-6 lg:px-10 py-4 flex items-center justify-between">
           <div>
             <div className="text-[12px] uppercase tracking-[0.2em] text-muted-foreground">Saturday</div>
-            <h1 className="font-display text-[28px] text-ink leading-tight">Welcome back, Marcus.</h1>
+            <h1 className="font-display text-[28px] text-ink leading-tight">Welcome back, {user?.user_metadata?.full_name?.split(' ')[0] || 'traveler'}.</h1>
           </div>
           <div className="flex items-center gap-2">
             <Link href="/chat"><Button variant="outline" className="rounded-full h-10 border-border/60 gap-2"><Sparkles className="h-4 w-4" /> Ask Voya</Button></Link>
