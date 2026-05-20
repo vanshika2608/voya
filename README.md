@@ -8,6 +8,11 @@ Voya is an AI-powered travel concierge that generates personalized, day-by-day i
 
 ---
 
+## Live Demo
+
+🚀 https://voya-lilac.vercel.app
+
+
 ## ✨ Features
 
 - **AI Itinerary Generation** — Describe your trip in plain English. Voya returns a full multi-day plan with real neighborhoods, restaurants, and hidden gems.
